@@ -11,39 +11,44 @@
 
 int main(int argc, char *argv[])
 {
-    int n, power, size ,ret, i;
-    int fd;  
-    char vdiskname[128]; 
-    char buf[BLOCKSIZE]; 
+	int n, power, size ,ret, i;
+	int fd;  
+	char vdiskname[128]; 
+	char buf[BLOCKSIZE];     
+	int numblocks = 0; 
 
-    printf ("started\n"); 
-    
+	strcpy (vdiskname, argv[1]); 
+	power = atoi(argv[2]); 
+	size = 1 << power; 
+	
+	numblocks = size / BLOCKSIZE; 
 
-    strcpy (vdiskname, argv[1]); 
-    power = atoi(argv[2]); 
-    size = 1 << power; 
-
-    printf ("disk %s size %d\n", vdiskname, size); 
-    
-
-    ret = creat (vdiskname, O_RDWR); 
-    
-    if (ret == -1) {
-	printf ("could not create disk\n"); 
-	exit(1); 
-    }
-
-    bzero ((void *)buf, BLOCKSIZE); 
-
-    fd = open (vdiskname, O_RDWR); 
-    
-    for (i=0; i< (size/BLOCKSIZE); ++i){
-	n = write (fd, buf, BLOCKSIZE); 
-	if (n != BLOCKSIZE) {
-	    printf ("write error\n"); 
-	    exit (1); 
+	printf ("diskname=%s size=%d blocks=%d\n", 
+		vdiskname, size, numblocks); 
+       	
+	ret = open (vdiskname,  O_CREAT | O_RDWR, 0600); 
+	
+	if (ret == -1) {
+		printf ("could not create disk\n"); 
+		exit(1); 
 	}
-    }
-
-    return (0);
+	
+	bzero ((void *)buf, BLOCKSIZE); 
+	
+	fd = open (vdiskname, O_RDWR); 
+	
+	for (i=0; i < (size / BLOCKSIZE); ++i) {
+		printf ("i=%d\n", i); 
+		n = write (fd, buf, BLOCKSIZE); 
+		if (n != BLOCKSIZE) {
+			printf ("write error\n"); 
+			exit (1); 
+		}
+	}
+	
+	close (fd); 
+	
+	printf ("created a virtual disk=%s of size=%d\n", vdiskname, size); 
+	
+	return (0);
 }
