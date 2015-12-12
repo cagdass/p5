@@ -1,21 +1,27 @@
 #ifndef VSFS_H
 #define VSFS_H
 
-#define BLOCKSIZE 4096
-#define MAXFILECOUNT (1<<7)
-#define MAXDISKSIZE (1<<28)
-#define MAXFILENAMESIZE (1<<7)
+#define BLOCKSIZE          4096     // bytes
+#define MAXFILECOUNT       128      // files - max that FS can support
+#define MAXDISKSIZE        (1<<28)  // 256 MB - max that FS can support
+#define MINDISKSIZE        (1<<20)  // 1 MB - min that FS need
+#define MAXFILENAMESIZE    128      // characters - max that FS can support
+#define MAXBLOCKCOUNT      (MAXDISKSIZE / BLOCKSIZE)
+#define MAXOPENFILES       128      // files
+#define MAXREADWRITE      1024     // bytes; max read/write amount
 
-int vsfs_format(char *vdiskname); 
-int vsfs_mount (char *vdiskname); 
-int vsfs_umount(char *vdiskname); 
+int vsfs_format(char *vdisk, int dsize);
+int vsfs_mount (char *vdisk, int dsize); 
+int vsfs_umount(); 
 int vsfs_create(char *filename); 
 int vsfs_open(char *filename); 
 int vsfs_close(int fd); 
 int vsfs_delete(char *filename); 
 int vsfs_read(int fd, void *buf, int n); 
-int vsfs_append(int fd, void *buf, int n); 
+int vsfs_write(int fd, void *buf, int n); 
 int vsfs_truncate(int fd, int size); 
 int vsfs_seek(int fd, int offset); 
+void vsfs_print_dir (); 
+void vsfs_print_fat (); 
 
 #endif
