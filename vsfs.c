@@ -9,13 +9,13 @@
 #include "vsfs.h"
 
 // Global Variables
-char disk_name[128]; 
-int  disk_size; 
-int  disk_fd; 
-int  disk_blockcount; 
+char disk_name[128];   // name of virtual disk file
+int  disk_size;        // size in bytes - a power of 2
+int  disk_fd;          // disk file handle
+int  disk_blockcount;  // block count on disk
 
 
-
+/* read block blocknum into buffer buf */
 int getblock (int blocknum, void *buf)
 {      
 	int offset, n; 
@@ -31,6 +31,8 @@ int getblock (int blocknum, void *buf)
 	return (0); 
 }
 
+
+/* put buffer buf into block blocknum */
 int putblock (int blocknum, void *buf)
 {
 	int offset, n;
@@ -50,12 +52,13 @@ int putblock (int blocknum, void *buf)
 
 
 
+
+/* format disk of size dsize */
 int vsfs_format(char *vdisk, int dsize)
 {
 	strcpy (disk_name, vdisk); 
 	disk_size = dsize;  
 	disk_blockcount = disk_size / BLOCKSIZE; 
-
 
 	disk_fd = open (disk_name, O_RDWR); 
 	if (disk_fd == -1) {
@@ -74,6 +77,8 @@ int vsfs_format(char *vdisk, int dsize)
 }
 
 
+
+/* mount disk and its file system */
 int vsfs_mount (char *vdisk)
 {
 	unsigned char buffer[BLOCKSIZE]; 
@@ -101,24 +106,29 @@ int vsfs_mount (char *vdisk)
 
 int vsfs_umount()
 {
-	// perform your mount operations here
+	// perform your unmount operations here
 
 	fsync (disk_fd); 
 	close (disk_fd); 
 }
 
+
+/* create a file with name filename */
 int vsfs_create(char *filename)
 {
 
 	return (0); 
 }
 
+
+/* open file filename */
 int vsfs_open(char *filename)
 {
 	
 
 }
 
+/* close file filename */
 int vsfs_close(int fd)
 {
 
@@ -154,7 +164,14 @@ int vsfs_truncate(int fd, int size)
 int vsfs_seek(int fd, int offset)
 {
 
+     
 } 
+
+int vsfs_filesize (int fd)
+{
+
+
+}
 
 
 void vsfs_print_dir ()
