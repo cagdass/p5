@@ -2,7 +2,7 @@
 
 all:  libvsfs.a  app makedisk formatdisk
 
-libvsfs.a: 	vdisk.c vsfs.c
+libvsfs.a:  	vsfs.c
 	gcc -Wall -c vsfs.c
 	ar -cvq  libvsfs.a vsfs.o
 	ranlib libvsfs.a

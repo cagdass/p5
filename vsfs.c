@@ -8,10 +8,13 @@
 
 #include "vsfs.h"
 
+// Global Variables
 char disk_name[128]; 
 int  disk_size; 
 int  disk_fd; 
 int  disk_blockcount; 
+
+
 
 int getblock (int blocknum, void *buf)
 {      
@@ -44,6 +47,9 @@ int putblock (int blocknum, void *buf)
 }
 
 
+
+
+
 int vsfs_format(char *vdisk, int dsize)
 {
 	strcpy (disk_name, vdisk); 
@@ -68,19 +74,24 @@ int vsfs_format(char *vdisk, int dsize)
 }
 
 
-int vsfs_mount (char *vdisk, int dsize)
+int vsfs_mount (char *vdisk)
 {
 	unsigned char buffer[BLOCKSIZE]; 
+	struct stat finfo; 
 
 	strcpy (disk_name, vdisk);
-	disk_size = dsize;
-	disk_blockcount = disk_size / BLOCKSIZE; 
-
 	disk_fd = open (disk_name, O_RDWR); 
 	if (disk_fd == -1) {
-		printf ("disk open error %s\n", disk_name); 
+		printf ("vsfs_mount: disk open error %s\n", disk_name); 
 		exit(1); 
 	}
+	
+	fstat (disk_fd, &finfo); 
+
+	printf ("vsfs_mount: mounting %s, size=%d\n", disk_name, 
+		(int) finfo.st_size);  
+	disk_size = (int) finfo.st_size; 
+	disk_blockcount = disk_size / BLOCKSIZE; 
 
 	// perform your mount operations here
 
@@ -122,6 +133,8 @@ int vsfs_delete(char *filename)
 int vsfs_read(int fd, void *buf, int n)
 {
 
+	
+	return (n); // if everything is OK
 
 }
 
@@ -129,6 +142,7 @@ int vsfs_write(int fd, void *buf, int n)
 {
 
 
+	return (n); // if everything is OK
 } 
 
 int vsfs_truncate(int fd, int size)

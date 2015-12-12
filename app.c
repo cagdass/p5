@@ -18,15 +18,14 @@ int main(int argc, char *argv[])
 	strcpy (filename[1], "file1"); 
 	strcpy (filename[2], "file2"); 
 	
-	if (argc != 3) {
-		printf ("usage: app <diskname> <power2size>\n"); 
+	if (argc != 2) {
+		printf ("usage: app <diskname>\n"); 
 		exit (1);
 	}
        
 	strcpy (diskname, argv[1]); 
-	dsize = 1 << (atoi (argv[2])); 
 	
-	if (vsfs_mount (diskname, dsize) != 0) {
+	if (vsfs_mount (diskname) != 0) {
 		printf ("could not mound %s\n", diskname); 
 		exit (1); 
 	}

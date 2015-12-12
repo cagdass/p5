@@ -11,7 +11,7 @@
 #define MAXREADWRITE      1024     // bytes; max read/write amount
 
 int vsfs_format(char *vdisk, int dsize);
-int vsfs_mount (char *vdisk, int dsize); 
+int vsfs_mount (char *vdisk); 
 int vsfs_umount(); 
 int vsfs_create(char *filename); 
 int vsfs_open(char *filename); 
