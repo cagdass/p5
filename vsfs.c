@@ -15,15 +15,24 @@ int  disk_fd;          // disk file handle
 int  disk_blockcount;  // block count on disk
 
 
-/* read block blocknum into buffer buf */
+
+/* 
+   Reads block blocknum into buffer buf.
+   You will not modify the getblock() function. 
+   Returns -1 if error. Should not happen.
+*/
 int getblock (int blocknum, void *buf)
 {      
 	int offset, n; 
 	
 	if (blocknum >= disk_blockcount) 
 		return (-1); //error
-
 	offset = lseek (disk_fd, blocknum * BLOCKSIZE, SEEK_SET); 
+	if (offset == -1) {
+		printf ("lseek error\n"); 
+		exit(0); 
+
+	}
 	n = read (disk_fd, buf, BLOCKSIZE); 
 	if (n != BLOCKSIZE) 
 		return (-1); 
@@ -32,7 +41,11 @@ int getblock (int blocknum, void *buf)
 }
 
 
-/* put buffer buf into block blocknum */
+/*  
+    Puts buffer buf into block blocknum.  
+    You will not modify the putblock() function
+    Returns -1 if error. Should not happen. 
+*/
 int putblock (int blocknum, void *buf)
 {
 	int offset, n;
@@ -40,7 +53,11 @@ int putblock (int blocknum, void *buf)
 	if (blocknum >= disk_blockcount) 
 		return (-1); //error
 
-	offset = lseek (disk_fd, blocknum * BLOCKSIZE, SEEK_SET); 
+	offset = lseek (disk_fd, blocknum * BLOCKSIZE, SEEK_SET);
+	if (offset == -1) {
+		printf ("lseek error\n"); 
+		exit (1); 
+	}
 	n = write (disk_fd, buf, BLOCKSIZE); 
 	if (n != BLOCKSIZE) 
 		return (-1); 
@@ -50,6 +67,12 @@ int putblock (int blocknum, void *buf)
 
 
 
+
+
+/* 
+   IMPLEMENT THE FUNCTIONS BELOW - You can implement additional 
+   internal functions. 
+ */
 
 
 
@@ -67,7 +90,6 @@ int vsfs_format(char *vdisk, int dsize)
 	}
 	
 	// perform your format operations here. 
-	
 	printf ("formatting disk=%s, size=%d\n", vdisk, disk_size); 
 
 	fsync (disk_fd); 
@@ -78,10 +100,16 @@ int vsfs_format(char *vdisk, int dsize)
 
 
 
-/* mount disk and its file system */
+/* 
+   Mount disk and its file system. This is not the same mount
+   operation we use for real file systems:  in that the new filesystem
+   is attached to a mount point in the default file system. Here we do
+   not do that. We just prepare the file system in the disk to be used
+   by the application. For example, we get FAT into memory, initialize
+   an open file table, get superblock into into memory, etc.
+*/
 int vsfs_mount (char *vdisk)
 {
-	unsigned char buffer[BLOCKSIZE]; 
 	struct stat finfo; 
 
 	strcpy (disk_name, vdisk);
@@ -100,7 +128,14 @@ int vsfs_mount (char *vdisk)
 
 	// perform your mount operations here
 
-	return (0); 
+	// write your code
+
+	
+	/* you can place these returns wherever you want. Below
+	   we put them at the end of functions so that compiler will not
+	   complain.
+        */
+  	return (0); 
 }
 
 
@@ -108,14 +143,19 @@ int vsfs_umount()
 {
 	// perform your unmount operations here
 
+	// write your code
+
 	fsync (disk_fd); 
 	close (disk_fd); 
+	return (0); 
 }
 
 
 /* create a file with name filename */
 int vsfs_create(char *filename)
 {
+
+	// write your code 
 
 	return (0); 
 }
@@ -124,64 +164,89 @@ int vsfs_create(char *filename)
 /* open file filename */
 int vsfs_open(char *filename)
 {
+	int index = -1; 
 	
-
+	// write your code
+       
+	return (index); 
 }
 
 /* close file filename */
 int vsfs_close(int fd)
 {
 
+	// write your code
+
+	return (0); 
 }
 
 int vsfs_delete(char *filename)
 {
 
+	// write your code
 
+	return (0); 
 }
 
 int vsfs_read(int fd, void *buf, int n)
 {
+	int bytes_read = -1; 
 
+	// write your code
 	
-	return (n); // if everything is OK
+	return (bytes_read); 
 
 }
 
 int vsfs_write(int fd, void *buf, int n)
 {
+	int bytes_written = -1; 
 
+	// write your code
 
-	return (n); // if everything is OK
+	return (bytes_written); 
 } 
 
 int vsfs_truncate(int fd, int size)
 {
 
+	// write your code
+
+	return (0); 
 } 
 
 
 int vsfs_seek(int fd, int offset)
 {
+	int position = -1; 
 
-     
+	// write your code
+
+	return (position); 
 } 
 
 int vsfs_filesize (int fd)
 {
+	int size = -1; 
+	
+	// write your code
 
-
+	return (size); 
 }
 
 
 void vsfs_print_dir ()
 {
 
+	// write your code
+	
 }
 
 
 void vsfs_print_fat ()
 {
+
+	// write your code
 
 }
 

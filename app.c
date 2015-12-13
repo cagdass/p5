@@ -8,7 +8,6 @@
 int main(int argc, char *argv[])
 {
 	char diskname[128]; 
-	int  dsize; 
 	char filename[16][MAXFILENAMESIZE]; 
 	int i, n; 
 	int fd0, fd1, fd2;       // file handles
@@ -70,6 +69,13 @@ int main(int argc, char *argv[])
 
 	
 	vsfs_close (fd0); 
+
+	fd1 = vsfs_open (filename[1]); 
+	fd2 = vsfs_open (filename[2]); 
+
+	vsfs_close (fd1);
+	vsfs_close (fd2); 
+	 
 
 	vsfs_umount(); 
 	
