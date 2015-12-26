@@ -151,16 +151,6 @@ int vsfs_format(char *vdisk, int dsize)
 	return (0); 
 }
 
-
-
-/* 
-   Mount disk and its file system. This is not the same mount
-   operation we use for real file systems:  in that the new filesystem
-   is attached to a mount point in the default file system. Here we do
-   not do that. We just prepare the file system in the disk to be used
-   by the application. For example, we get FAT into memory, initialize
-   an open file table, get superblock into into memory, etc.
-*/
 int vsfs_mount (char *vdisk)
 {
 	struct stat finfo; 
@@ -409,11 +399,18 @@ int vsfs_seek(int fd, int offset)
 
 int vsfs_filesize (int fd)
 {
-	int size = -1; 
-	
-	
+	int size = -1;
+	int ptr = initial_pointers[ptr];
+	size = 0;
+	while(1){
+		if(ptr = -1){
+			break;
+		}
+		ptr = block_pointers[ptr];
+		size += 1;
+	}
 
-	return (size); 
+	return size * BLOCKSIZE;
 }
 
 
