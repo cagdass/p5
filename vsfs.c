@@ -34,6 +34,12 @@ int  disk_blockcount;  // block count on disk
 int  blocks_allocated = 0;
 int  files_allocated = 0;
 int  first_free_block = 0;
+// Pointers & Data for FAT Table
+char** filenames;
+int* initial_pointers;
+int* block_pointers;
+int* offset_pointers;
+int* open_files;
 
 /* 
    Reads block blocknum into buffer buf.
@@ -176,17 +182,21 @@ int vsfs_mount (char *vdisk)
 	int i; // loop variable
 
 	// create an array to keep the filenames, (has 128 elements just in case maximum file count times files are created)
-	char** filenames = (char**)malloc(MAXFILECOUNT * sizeof(char*));
+	filenames = (char**)malloc(MAXFILECOUNT * sizeof(char*));
 	// create a list of offsets for to add the mount address to find which file's beginning points to where
-	int* initial_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
+	initial_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
 	// create a list of offsets for all the blocks
-	int* block_pointers = (int*)malloc(disk_size / BLOCKSIZE * sizeof(int));
+	block_pointers = (int*)malloc(disk_size / BLOCKSIZE * sizeof(int));
 	// file position pointers
-	int* offset_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
+	offset_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
+	// a list of open files, indexed corresponding to the filenames list
+	open_files = (int*)malloc(MAXFILECOUNT * sizeof(int));
 
 	for(i = 0; i < MAXFILECOUNT; i++){
 		// allocate space for the names of the files
 		filenames[i] = (char*)malloc(MAXFILENAMESIZE * sizeof(char));
+		// if 0 zero file is not opened, if 1 file is open
+		open_files[i] = 0;
 	}
 
 	// let all the pointers point to -1 first, depicting they point to null
@@ -267,9 +277,36 @@ int vsfs_umount()
 /* create a file with name filename */
 int vsfs_create(char *filename)
 {
-	if()
+	if(files_allocated < MAXFILECOUNT){
+		// create the file and return an error message otherwise
+		ret = open (filename,  O_CREAT | O_RDWR, 0666);
+		if (ret == -1) {
+			printf ("could not create file\n"); 
+			exit(1); 
+		}
 
-	return (0); 
+		int i;
+
+		// create a record for the newly created file in our data structures
+		for(i = 0; i < MAXFILECOUNT; i++){
+			if(filenames[i] == NULL){
+				filenames[i] = filename;
+				initial_pointers[i] = first_free_block;
+				first_free_block = block_pointers[first_free_block];
+				block_pointers[initial_pointers[i]] = -1;
+				files_allocated++;
+				blocks_allocated++;
+				break;
+			}
+		}
+
+		return (0); 
+	}
+	else{
+		printf("Cannot create file. Number of allowed files is reached\n");
+		exit(1);
+	}
+
 }
 
 
@@ -277,8 +314,15 @@ int vsfs_create(char *filename)
 int vsfs_open(char *filename)
 {
 	int index = -1; 
-	
-	// write your code
+	int i;
+	// go through all the files and compare the input filename with the filenames in our list
+	for(i = 0; i < MAXFILECOUNT; i++){
+		if(strcmp(filenames[i], filename) == 0){
+			// file is found, indicate the file is open and return the index
+			open_files[i] = 1;
+			return i;
+		}
+	}
        
 	return (index); 
 }
@@ -286,16 +330,39 @@ int vsfs_open(char *filename)
 /* close file filename */
 int vsfs_close(int fd)
 {
-
-	// write your code
+	// indicate the file is close in the open files list
+	open_files[fd] = 0;
 
 	return (0); 
 }
 
 int vsfs_delete(char *filename)
 {
+	int index;
+	int i;
+	for(i = 0; i < MAXFILECOUNT; i++){
+		if(strcmp(filenames[i], filename) == 0){
+			open_files[i] = 0;
+			// save the index
+			index = i;
+			// decrement the number of files allocated
+			files_allocated--;
+			break;
+		}
+	}
 
-	// write your code
+	// beginning from the first block of the file
+	int ptr = initial_pointers[index];
+	while(true){
+		blocks_allocated--;
+		int temp = block_pointers[ptr];
+		block_pointers[ptr] = first_free_block;
+		first_free_block = ptr;
+		ptr = temp;
+		if(ptr < 0 || ptr >= disk_size / BLOCKSIZE){
+			break;
+		}
+	}
 
 	return (0); 
 }
@@ -303,8 +370,8 @@ int vsfs_delete(char *filename)
 int vsfs_read(int fd, void *buf, int n)
 {
 	int bytes_read = -1; 
+	
 
-	// write your code
 	
 	return (bytes_read); 
 
@@ -349,16 +416,39 @@ int vsfs_filesize (int fd)
 
 void vsfs_print_dir ()
 {
-
-	// write your code
-	
+	int i;
+	// print the name of the files that are not null
+	for(i = 0; i < MAXFILECOUNT; i++){
+		if(filenames[i] != NULL){
+			printf("%s\n", filenames[i]);	
+		}
+	}
 }
 
 
 void vsfs_print_fat ()
 {
-
-	// write your code
+	int i;
+	// go through the files here
+	for(i = 0; i < MAXFILECOUNT; i++){
+		if(filenames[i] != NULL){
+			// print file name
+			printf("%s: ", filenames[i]);
+			// get the pointer that points to the first block of the file and iterate the pointers until the last block is reached
+			int ptr = initial_pointers[i];
+			while(true);
+			{
+				// print block value
+				printf("%d ", ptr);
+				ptr = block_pointers[ptr];
+				if(ptr < 0 || ptr >= disk_size / BLOCKSIZE){
+					break;
+				}
+			}
+			// print new line since the new file will be begun printing after this
+			printf("\n");
+		}
+	}
 
 }
 
