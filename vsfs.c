@@ -33,9 +33,19 @@ char disk_name[128];   // name of virtual disk file
 int  disk_size;        // size in bytes - a power of 2
 int  disk_fd;          // disk file handle
 int  disk_blockcount;  // block count on disk
+
+// additional global variables
 int  blocks_allocated = 0;
 int  files_allocated = 0;
 int  first_free_block = 0;
+
+struct node {
+	char filename[128];
+	int initial_pointer;
+	int offset_pointer;
+	int open;
+};
+
 // Pointers & Data for FAT Table
 char** filenames;
 int* initial_pointers;
@@ -92,17 +102,6 @@ int putblock (int blocknum, void *buf)
 	return (0); 
 }
 
-
-
-
-
-/* 
-   IMPLEMENT THE FUNCTIONS BELOW - You can implement additional 
-   internal functions. 
- */
-
-
-
 /* format disk of size dsize */
 int vsfs_format(char *vdisk, int dsize)
 {
@@ -121,47 +120,31 @@ int vsfs_format(char *vdisk, int dsize)
 	
 	int i;
 
-	void* buffer1 = (void*)malloc(BLOCKSIZE);
-	void* buffer2 = (void*)malloc(BLOCKSIZE);
+	struct node* buffer1 = (struct node*)malloc(BLOCKSIZE);
+	int* buffer2 = (int*)malloc(BLOCKSIZE);
 	
 	// write the number of blocks and files in the system
-	int ptr = 0;
-	// for number of blocks allocated
-	buffer1[ptr] = 0;
-	ptr += sizeof(int);
-	// for number of files allocated
-	buffer1[ptr] = 0;
-	ptr += sizeof(int);
-	// for first free block
-	buffer1[ptr] = 0;
-	ptr += sizeof(int);
-
+	
 	// write names of the files in each line and the pointers to their first locations in the next line
 	// also write the file position pointers
+	struct node ptr;
 	for(i = 0; i < MAXFILECOUNT; i++){
-		// filename
-		buffer1[ptr] = ("");
-		ptr += sizeof("");
-		// pointer to first block
-		buffer1[ptr] = (-1);
-		ptr += sizeof(int);
-		// file is open or not
-		buffer1[ptr] = 0;
-		ptr += sizeof(int);
+		ptr = buffer1[i];
+		strcpy(ptr.filename, "");
+		ptr.initial_pointer = -1;
+		ptr.offset_pointer = 0;
+		ptr.open = 0;
 	}
 
-	putblock(disk_size / BLOCKSIZE - 2, buffer1);
+	putblock(disk_size / BLOCKSIZE - 2, (void*)buffer1);
 	free(buffer1);
 
-	ptr = 0;
 
 	// initialize free block pointers
 	for(i = 0; i < disk_size / BLOCKSIZE - 3; i++){
-		buffer2[ptr] = i+1;
-		ptr += sizeof(int);
+		buffer2[i] = i+1;
 	}
-	// the last free block pointer initially points to the beginning
-	buffer2[ptr] = 0;
+
 	putblock(disk_size / BLOCKSIZE - 1, buffer2);
 	free(buffer2);
 
@@ -220,36 +203,28 @@ int vsfs_mount (char *vdisk)
 	}
 
 	// these pointers are reserved by fat table
-	blockpointers[disk_size / BLOCKSIZE - 2] = -1;
-	blockpointers[disk_size / BLOCKSIZE - 1] = -1;
+	block_pointers[disk_size / BLOCKSIZE - 2] = -1;
+	block_pointers[disk_size / BLOCKSIZE - 1] = -1;
 
-	void* buffer;
-	getblock(disk_size / BLOCKSIZE - 2, buffer);
+	struct node* buffer1;
+	getblock(disk_size / BLOCKSIZE - 2, (void*)buffer1);
 
-	int ptr = 0;
-
-	blocks_allocated = (int)buffer[ptr];
-	ptr += sizeof(int);
-	files_allocated = (int)buffer[ptr];
-	ptr += sizeof(int);
-	first_free_block = (int)buffer[ptr];
-	ptr += sizeof(int);
+	struct node ptr;
 
 	for(i = 0; i < MAXFILECOUNT; i++){
-		filenames[i] = (char*)buffer[ptr];
-		ptr += sizeof(char[128]);
-		initial_pointers[i] = (int)buffer[ptr];
-		ptr += sizeof(int);
-		offset_pointers[i] = (int)buffer[ptr];
-		ptr += sizeof(int);
+		ptr = buffer1[i];
+		strcpy(filenames[i], ptr.filename);
+		initial_pointers[i] = ptr.initial_pointer;
+		offset_pointers[i] = ptr.offset_pointer;
+		open_files[i] = ptr.open;
 	}
 
-	getblock(disk_size / BLOCKSIZE - 1, buffer);
-	ptr = 0;
+	int* buffer2;
+	getblock(disk_size / BLOCKSIZE - 1, (void*)buffer2);
+
 
 	for(i = 0; i < (disk_size / BLOCKSIZE) - 2; i++){
-		block_pointers[i] = (int)buffer[ptr];
-		ptr += sizeof(int);
+		block_pointers[i] = buffer2[i];
 	}
 
   	return (0); 
@@ -260,44 +235,29 @@ int vsfs_umount()
 {
 	int i;
 
-	void* buffer1 = (void*)malloc(BLOCKSIZE);
-	void* buffer2 = (void*)malloc(BLOCKSIZE);
+	struct node* buffer1 = (struct node*)malloc(BLOCKSIZE);
+	int* buffer2 = (int*)malloc(BLOCKSIZE);
 	
 	// write the number of blocks and files in the system
-	int ptr = 0;
-	// for number of blocks allocated
-	buffer1[ptr] = blocks_allocated;
-	ptr += sizeof(int);
-	// for number of files allocated
-	buffer1[ptr] = files_allocated;
-	ptr += sizeof(int);
-	// for first free block
-	buffer1[ptr] = first_free_block;
-	ptr += sizeof(int);
 
 	// write names of the files in each line and the pointers to their first locations in the next line
 	// also write the file position pointers
+	struct node ptr;
 	for(i = 0; i < MAXFILECOUNT; i++){
 		// filename
-		buffer1[ptr] = (filenames[i]);
-		ptr += sizeof(filenames[i]);
-		// pointer to first block
-		buffer1[ptr] = (initial_pointers[i]);
-		ptr += sizeof(int);
-		// file is open or not
-		buffer1[ptr] = (open_files[i]);
-		ptr += sizeof(int);
+		ptr = buffer1[i];
+		strcpy(ptr.filename, filenames[i]);
+		ptr.initial_pointer = initial_pointers[i];
+		ptr.open = open_files[i];
+		ptr.offset_pointer = offset_pointers[i];
 	}
 
 	putblock(disk_size / BLOCKSIZE - 2, buffer1);
 	free(buffer1);
 
-	ptr = 0;
-
 	// initialize free block pointers
 	for(i = 0; i < disk_size / BLOCKSIZE - 2; i++){
-		buffer2[ptr] = (block_pointers[i]);
-		ptr += sizeof(int);
+		buffer2[i] = (block_pointers[i]);
 	}
 	putblock(disk_size / BLOCKSIZE - 1, buffer2);
 	free(buffer2);
@@ -435,11 +395,26 @@ int vsfs_truncate(int fd, int size)
 
 int vsfs_seek(int fd, int offset)
 {
-	int position = -1; 
+	// find current offset
+	int ptr = initial_pointers[fd];
+	int num_blocks = offset / BLOCKSIZE;
+	int block_offset = offset % BLOCKSIZE;
 
-	// write your code
+	int block_count = 1;
 
-	return (position); 
+	while(1){
+		if(ptr == -1){
+			offset_pointers[fd] = block_count * BLOCKSIZE;
+			break;
+		}
+		else if(block_count == num_blocks){
+			offset_pointers[fd] = offset;
+		}
+		ptr = block_pointers[ptr];
+		block_count++;
+	}
+
+	return (offset_pointers[fd]); 
 } 
 
 int vsfs_filesize (int fd)
@@ -448,7 +423,7 @@ int vsfs_filesize (int fd)
 	int ptr = initial_pointers[ptr];
 	size = 0;
 	while(1){
-		if(ptr = -1){
+		if(ptr == -1){
 			break;
 		}
 		ptr = block_pointers[ptr];
