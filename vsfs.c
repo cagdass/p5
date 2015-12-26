@@ -26,6 +26,8 @@
 //entry -> filename, pointer to the beginning
 //for each block, pointer to the next
 
+// the last two blocks are always reserved to the fat system
+
 // Global Variables
 char disk_name[128];   // name of virtual disk file
 int  disk_size;        // size in bytes - a power of 2
@@ -118,32 +120,50 @@ int vsfs_format(char *vdisk, int dsize)
 	printf ("formatting disk=%s, size=%d\n", vdisk, disk_size); 
 	
 	int i;
-	FILE* fp = fopen(disk_name, "rw+");
+
+	void* buffer1 = (void*)malloc(BLOCKSIZE);
+	void* buffer2 = (void*)malloc(BLOCKSIZE);
 	
 	// write the number of blocks and files in the system
-	fprintf(fp, "%d\n", 0);
-	fprintf(fp, "%d\n", 0);
-	// write first free block's address
-	fprintf(fp, "%d\n", first_free_block);
-	
+	int ptr = 0;
+	// for number of blocks allocated
+	buffer1[ptr] = 0;
+	ptr += sizeof(int);
+	// for number of files allocated
+	buffer1[ptr] = 0;
+	ptr += sizeof(int);
+	// for first free block
+	buffer1[ptr] = 0;
+	ptr += sizeof(int);
+
 	// write names of the files in each line and the pointers to their first locations in the next line
 	// also write the file position pointers
 	for(i = 0; i < MAXFILECOUNT; i++){
-		fprintf(fp, "free\n");
-		fprintf(fp, "%d\n", -1);
-		fprintf(fp, "%d\n", 0);
+		// filename
+		buffer1[ptr] = ("");
+		ptr += sizeof("");
+		// pointer to first block
+		buffer1[ptr] = (-1);
+		ptr += sizeof(int);
+		// file is open or not
+		buffer1[ptr] = 0;
+		ptr += sizeof(int);
 	}
+
+	putblock(disk_size / BLOCKSIZE - 2, buffer1);
+	free(buffer1);
+
+	ptr = 0;
 
 	// initialize free block pointers
-	for(i = 0; i < disk_size / BLOCKSIZE - 1; i++){
-		fprintf(fp, "%d\n", i+1);
+	for(i = 0; i < disk_size / BLOCKSIZE - 3; i++){
+		buffer2[ptr] = i+1;
+		ptr += sizeof(int);
 	}
 	// the last free block pointer initially points to the beginning
-	fprintf(fp, "%d", 0);
-
-	fclose(fp);
-
-
+	buffer2[ptr] = 0;
+	putblock(disk_size / BLOCKSIZE - 1, buffer2);
+	free(buffer2);
 
 	fsync (disk_fd); 
 	close (disk_fd); 
@@ -176,7 +196,7 @@ int vsfs_mount (char *vdisk)
 	// create a list of offsets for to add the mount address to find which file's beginning points to where
 	initial_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
 	// create a list of offsets for all the blocks
-	block_pointers = (int*)malloc(disk_size / BLOCKSIZE * sizeof(int));
+	block_pointers = (int*)malloc( ((disk_size / BLOCKSIZE) -2 ) * sizeof(int));
 	// file position pointers
 	offset_pointers = (int*)malloc(MAXFILECOUNT * sizeof(int));
 	// a list of open files, indexed corresponding to the filenames list
@@ -195,36 +215,42 @@ int vsfs_mount (char *vdisk)
 	}
 
 	// let all the pointers point to -1 first, depicting they point to null
-	for(i = 0; i < disk_size / BLOCKSIZE; i++){
+	for(i = 0; i < disk_size / BLOCKSIZE - 2; i++){
 		block_pointers[i] = -1;
 	}
 
-	FILE* fp = fopen(disk_name, "r");
+	// these pointers are reserved by fat table
+	blockpointers[disk_size / BLOCKSIZE - 2] = -1;
+	blockpointers[disk_size / BLOCKSIZE - 1] = -1;
 
-	char * line = NULL;
-	size_t len = 0;
+	void* buffer;
+	getblock(disk_size / BLOCKSIZE - 2, buffer);
 
-	getline(&line, &len, fp);
-	blocks_allocated = atoi(line);
-	getline(&line, &len, fp);
-	files_allocated = atoi(line);
-	getline(&line, &len, fp);
-	first_free_block = atoi(line);
+	int ptr = 0;
+
+	blocks_allocated = (int)buffer[ptr];
+	ptr += sizeof(int);
+	files_allocated = (int)buffer[ptr];
+	ptr += sizeof(int);
+	first_free_block = (int)buffer[ptr];
+	ptr += sizeof(int);
+
 	for(i = 0; i < MAXFILECOUNT; i++){
-		getline(&line, &len, fp);
-		printf("Filenames read %d: %s\n", i, line);
-		filenames[i] = line;
-		getline(&line, &len, fp);
-		initial_pointers[i] = atoi(line);
-		getline(&line, &len, fp);
-		offset_pointers[i] = atoi(line);
-	}
-	for(i = 0; i < disk_size / BLOCKSIZE; i++){
-		getline(&line, &len, fp);
-		block_pointers[i] = atoi(line);
+		filenames[i] = (char*)buffer[ptr];
+		ptr += sizeof(char[128]);
+		initial_pointers[i] = (int)buffer[ptr];
+		ptr += sizeof(int);
+		offset_pointers[i] = (int)buffer[ptr];
+		ptr += sizeof(int);
 	}
 
-	fclose(fp);
+	getblock(disk_size / BLOCKSIZE - 1, buffer);
+	ptr = 0;
+
+	for(i = 0; i < (disk_size / BLOCKSIZE) - 2; i++){
+		block_pointers[i] = (int)buffer[ptr];
+		ptr += sizeof(int);
+	}
 
   	return (0); 
 }
@@ -232,30 +258,49 @@ int vsfs_mount (char *vdisk)
 
 int vsfs_umount()
 {
-	FILE* fp = open(disk_name, "rw+");
-	fprintf(fp, "%d\n", blocks_allocated);
-	fprintf(fp, "%d\n", files_allocated);
-	fprintf(fp, "%d\n", first_free_block);
-
 	int i;
 
+	void* buffer1 = (void*)malloc(BLOCKSIZE);
+	void* buffer2 = (void*)malloc(BLOCKSIZE);
+	
+	// write the number of blocks and files in the system
+	int ptr = 0;
+	// for number of blocks allocated
+	buffer1[ptr] = blocks_allocated;
+	ptr += sizeof(int);
+	// for number of files allocated
+	buffer1[ptr] = files_allocated;
+	ptr += sizeof(int);
+	// for first free block
+	buffer1[ptr] = first_free_block;
+	ptr += sizeof(int);
+
+	// write names of the files in each line and the pointers to their first locations in the next line
+	// also write the file position pointers
 	for(i = 0; i < MAXFILECOUNT; i++){
-		fprintf(fp, "%s\n", filenames[i]);
-		fprintf(fp, "%d\n", initial_pointers[i]);
-		fprintf(fp, "%d\n", offset_pointers[i]);
-	}
-	for(i = 0; i < disk_size / BLOCKSIZE; i++){
-		fprintf(fp, "%d\n", block_pointers[i]);
+		// filename
+		buffer1[ptr] = (filenames[i]);
+		ptr += sizeof(filenames[i]);
+		// pointer to first block
+		buffer1[ptr] = (initial_pointers[i]);
+		ptr += sizeof(int);
+		// file is open or not
+		buffer1[ptr] = (open_files[i]);
+		ptr += sizeof(int);
 	}
 
-	// free the allocated space in memory
-	for(i = 0; i < MAXFILECOUNT; i++){
-		free(filenames[i]);
+	putblock(disk_size / BLOCKSIZE - 2, buffer1);
+	free(buffer1);
+
+	ptr = 0;
+
+	// initialize free block pointers
+	for(i = 0; i < disk_size / BLOCKSIZE - 2; i++){
+		buffer2[ptr] = (block_pointers[i]);
+		ptr += sizeof(int);
 	}
-	free(filenames);
-	free(initial_pointers);
-	free(offset_pointers);
-	free(block_pointers);
+	putblock(disk_size / BLOCKSIZE - 1, buffer2);
+	free(buffer2);
 
 	fsync (disk_fd); 
 	close (disk_fd); 
@@ -267,7 +312,7 @@ int vsfs_umount()
 /* create a file with name filename */
 int vsfs_create(char *filename)
 {
-	if(files_allocated < MAXFILECOUNT){
+	if(files_allocated < MAXFILECOUNT && blocks_allocated < disk_size / BLOCKSIZE - 2){
 		// create the file and return an error message otherwise
 		int ret = open (filename,  O_CREAT | O_RDWR, 0666);
 		if (ret == -1) {
