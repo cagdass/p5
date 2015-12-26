@@ -105,7 +105,7 @@ int putblock (int blocknum, void *buf)
 int vsfs_format(char *vdisk, int dsize)
 {
 	strcpy (disk_name, vdisk); 
-	disk_size = dsize;  
+	disk_size = dsize;
 	disk_blockcount = disk_size / BLOCKSIZE; 
 
 	disk_fd = open (disk_name, O_RDWR); 
@@ -129,7 +129,7 @@ int vsfs_format(char *vdisk, int dsize)
 	// write names of the files in each line and the pointers to their first locations in the next line
 	// also write the file position pointers
 	for(i = 0; i < MAXFILECOUNT; i++){
-		fprintf(fp, "\0\n");
+		fprintf(fp, "free\n");
 		fprintf(fp, "%d\n", -1);
 		fprintf(fp, "%d\n", 0);
 	}
@@ -205,7 +205,7 @@ int vsfs_mount (char *vdisk)
 	}
 
 	// let all the pointers point to -1 first, depicting they point to null
-	for(i = 0; i < disksize / BLOCKSIZE; i++){
+	for(i = 0; i < disk_size / BLOCKSIZE; i++){
 		block_pointers[i] = -1;
 	}
 
@@ -213,16 +213,16 @@ int vsfs_mount (char *vdisk)
 
 	char * line = NULL;
 	size_t len = 0;
-	ssize_t read;
 
-	getline(&line, &len, fp));
+	getline(&line, &len, fp);
 	blocks_allocated = atoi(line);
-	getline(&line, &len, fp));
+	getline(&line, &len, fp);
 	files_allocated = atoi(line);
-	getline(&line, &len, fp));
+	getline(&line, &len, fp);
 	first_free_block = atoi(line);
 	for(i = 0; i < MAXFILECOUNT; i++){
 		getline(&line, &len, fp);
+		printf("Filenames read %d: %s\n", i, line);
 		filenames[i] = line;
 		getline(&line, &len, fp);
 		initial_pointers[i] = atoi(line);
@@ -242,7 +242,7 @@ int vsfs_mount (char *vdisk)
 
 int vsfs_umount()
 {
-	FILE* fp = open(disk_name, "rw");
+	FILE* fp = open(disk_name, "rw+");
 	fprintf(fp, "%d\n", blocks_allocated);
 	fprintf(fp, "%d\n", files_allocated);
 	fprintf(fp, "%d\n", first_free_block);
@@ -279,7 +279,7 @@ int vsfs_create(char *filename)
 {
 	if(files_allocated < MAXFILECOUNT){
 		// create the file and return an error message otherwise
-		ret = open (filename,  O_CREAT | O_RDWR, 0666);
+		int ret = open (filename,  O_CREAT | O_RDWR, 0666);
 		if (ret == -1) {
 			printf ("could not create file\n"); 
 			exit(1); 
@@ -289,7 +289,9 @@ int vsfs_create(char *filename)
 
 		// create a record for the newly created file in our data structures
 		for(i = 0; i < MAXFILECOUNT; i++){
-			if(filenames[i] == NULL){
+			if(strcmp(filenames[i], "free") == 0){
+				printf("Hola %d\n", i);
+				strcpy(filenames[i], filename);
 				filenames[i] = filename;
 				initial_pointers[i] = first_free_block;
 				first_free_block = block_pointers[first_free_block];
@@ -317,6 +319,7 @@ int vsfs_open(char *filename)
 	int i;
 	// go through all the files and compare the input filename with the filenames in our list
 	for(i = 0; i < MAXFILECOUNT; i++){
+		printf("%d %s %s\n", i, filenames[i], filename);
 		if(strcmp(filenames[i], filename) == 0){
 			// file is found, indicate the file is open and return the index
 			open_files[i] = 1;
@@ -338,7 +341,7 @@ int vsfs_close(int fd)
 
 int vsfs_delete(char *filename)
 {
-	int index;
+	int index = -1;
 	int i;
 	for(i = 0; i < MAXFILECOUNT; i++){
 		if(strcmp(filenames[i], filename) == 0){
@@ -353,7 +356,7 @@ int vsfs_delete(char *filename)
 
 	// beginning from the first block of the file
 	int ptr = initial_pointers[index];
-	while(true){
+	while(1){
 		blocks_allocated--;
 		int temp = block_pointers[ptr];
 		block_pointers[ptr] = first_free_block;
@@ -370,7 +373,7 @@ int vsfs_delete(char *filename)
 int vsfs_read(int fd, void *buf, int n)
 {
 	int bytes_read = -1; 
-	
+
 
 	
 	return (bytes_read); 
@@ -408,7 +411,7 @@ int vsfs_filesize (int fd)
 {
 	int size = -1; 
 	
-	// write your code
+	
 
 	return (size); 
 }
@@ -436,7 +439,7 @@ void vsfs_print_fat ()
 			printf("%s: ", filenames[i]);
 			// get the pointer that points to the first block of the file and iterate the pointers until the last block is reached
 			int ptr = initial_pointers[i];
-			while(true);
+			while(1)
 			{
 				// print block value
 				printf("%d ", ptr);
